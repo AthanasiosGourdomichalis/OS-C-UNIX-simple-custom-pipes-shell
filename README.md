@@ -1,4 +1,4 @@
-# Operating_Systems_C_UNIX_simple_custom_pipes_shell_Assignment_2
+# Operating_Systems_C_UNIX_simple_custom_pipes_shell
 The general structure across all three mysh implementations consists of the main() function 
 containing an infinite while(1) loop that continuously displays the prompt "$ " for the ongoing 
 execution of the shell. This loop terminates upon receiving the "exit" command or 
