@@ -116,3 +116,10 @@ might still write to the pipe. This causes the shell to freeze/hang and fail to 
 next prompt ("$ "). 
 
 In particular, the manual pages for dup(2) and dup2(2) proved especially helpful.
+
+---
+
+# 👤 Author
+## Athanasios Gourdomichalis - https://github.com/AthanasiosGourdomichalis
+
+---
