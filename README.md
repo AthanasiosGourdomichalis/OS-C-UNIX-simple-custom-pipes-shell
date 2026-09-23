@@ -1,19 +1,38 @@
-# Operating Systems: simple custom shells written in C managing pipes (UNIX)
-The general structure across all three mysh implementations consists of the main() function 
-containing an infinite while(1) loop that continuously displays the prompt "$ " for the ongoing 
-execution of the shell. This loop terminates upon receiving the "exit" command or 
-encountering an unrecoverable error (via break), such as an execution failure in exec(), etc. 
-Furthermore, in the case of invalid input, the shells do not hang or crash, nor do they print 
-anything to stdout; instead, error messages are routed to stderr using perror() (e.g., 
-"Command not found"). I have implemented all parts of the assignment, and regarding the 
-automated test scripts for submission, everything passes correctly. Finally, comprehensive 
-inline comments have been provided throughout most of the codebase for further 
-clarification. 
+# UNIX Custom Shells written in C managing pipes
+![Language: C](https://img.shields.io/badge/Language-C-blue?logo=c&logoColor=white)
+![Platform: Linux/UNIX](https://img.shields.io/badge/Platform-Linux%20%7C%20UNIX-lightgrey)
+
+> This repository contains the **implementation of three minimalistic custom UNIX shells** (**`mysh1`**, **`mysh2`**, **`mysh3`**) written in **`C`**. Developed as an Operating Systems project, these shells demonstrate core OS concepts including process creation, memory management, I/O redirection, and Inter-Process Communication (IPC).
+
+---
+
+## Features
+The project is divided into three progressive iterations:
+* **`mysh1` (Base Execution):** Reads commands from **standard input**, handles **leading/trailing whitespaces**, and executes programs securely from the `$PATH` environment variable. Gracefully ignores empty commands and prevents memory leaks.
+* **`mysh2` (Command-Line Arguments & Built-ins):** Adds support for dynamic **command-line** arguments using dynamic memory allocation. Includes a **custom implementation** of the `cd` built-in command for **directory navigation**.
+* **`mysh3` (Pipes & IPC):** Introduces support for single-pipe commands (e.g., `ls -l /tmp | wc -l`) by splitting input, spawning multiple child processes, and routing data between them seamlessly.
+---
+## Usage & Compilation
+Compile any of the shells using `gcc`. For example, to compile the most advanced version (`mysh3`):
+```bash
+gcc -o mysh3 mysh3.c
+```
+---
+
+### Documentation (Developer Notes)
+The architecture relies heavily on strict UNIX system calls and standard C libraries:
+
+* **Process Management (`fork` & `waitpid`):** The shell operates in an infinite loop, spawning a child process via `fork(2)` for every command. The parent process suspends execution using `waitpid(3)` until the child completes, ensuring synchronization.
+* **Command Execution (`execvp`):** Instead of relying on `system()`, commands are executed using the `execvp(3)` family. Arguments are parsed into a dynamically allocated pointer array, allowing robust parameter passing.
+* **Input Parsing (`strtok`):** Raw input is captured with `getline(3)` and sanitized using `strtok(3)` with ` \t\n` delimiters to prevent failures from unexpected extra whitespaces or tabs.
+* **Inter-Process Communication (`pipe` & `dup2`):** In `mysh3`, pipe functionality is achieved by replacing the `|` delimiter with `\0` to isolate commands in contiguous memory. `pipe(2)` creates the data channel, and `dup2(2)` redirects the first child's `stdout` to the write-end (`fd[1]`) and the second child's `stdin` to the read-end (`fd[0]`).
+* **Resource & FD Management:** Strict memory management is enforced by continuously `free()`-ing the dynamically allocated argument vectors. To prevent deadlocks (hanging), unused file descriptors are meticulously closed in both parent and child processes immediately after duplication.
+---
+
+The general structure across all three mysh implementations consists of the main() function containing an infinite while(1) loop that continuously displays the prompt "$ " for the ongoing execution of the shell. This loop terminates upon receiving the "exit" command or encountering an unrecoverable error (via break), such as an execution failure in exec(), etc. Furthermore, in the case of invalid input, the shells do not hang or crash, nor do they print anything to stdout; instead, error messages are routed to stderr using perror() (e.g., "Command not found"). I have implemented all parts of the assignment, and regarding the automated test scripts for submission, everything passes correctly. Finally, comprehensive inline comments have been provided throughout most of the codebase for further clarification. 
 Issues Encountered During Implementation & Solutions. For mysh[123].c:
 
-1. mysh1.c: I read the program name from standard input using getline(3), passing a  
-char *input buffer pointer, a size_t length for the buffer capacity, and storing the return 
-value in an ssize_t line variable (which includes the trailing newline \n).
+### 1. mysh1.c: I read the program name from standard input using getline(3), passing a char *input buffer pointer, a size_t length for the buffer capacity, and storing the return value in an ssize_t line variable (which includes the trailing newline \n).
 
 o Issue & Fix: Initially, I faced failures on automated Tests 15–18 because I had not 
 accounted for input with leading whitespaces (e.g., "____ls" instead of "ls"). I 
@@ -37,7 +56,9 @@ library behavior revealed that getline(3) internally allocates dynamic memory
 via malloc when passed a NULL buffer or zero size, so freeing it prevents 
 memory leaks. 
 
-# 2. mysh2.c: Building upon mysh1, mysh2 adds support for command-line arguments.
+---
+
+### 2. mysh2.c: Building upon mysh1, mysh2 adds support for command-line arguments.
   
 o Argument Parsing: Input tokens are initially extracted using strtok(3) with " \t\n" 
 as delimiters. Inside a while loop, subsequent tokens are parsed and sequentially 
@@ -70,56 +91,40 @@ resulted in test failures until I received the automated test hints:
 "Test 10/37: fail... (HINT: Are you using dynamic allocation?)" and 
 "Test 21/37: fail... (HINT: Are you using dynamic allocation?)" 
 
-Switching to dynamic memory allocation resolved these issues. Furthermore, studying 
-the manual pages for chdir(2) and getcwd(3) proved invaluable for implementing 
-directory navigation correctly.
+Switching to dynamic memory allocation resolved these issues. Furthermore, studying the manual pages for chdir(2) and getcwd(3) proved invaluable for implementing directory navigation correctly.
 
-# 3. mysh.3: Building upon mysh1 and mysh2, mysh3 adds support for pipes.
+---
+
+### 3. mysh.3: Building upon mysh1 and mysh2, mysh3 adds support for pipes.
     
-o Parsing & Splitting: After reading user input via getline(3), I iterate through the char 
-array (C-string) searching for the pipe delimiter character '|'. If no pipe is found, 
-execution falls back seamlessly to the exact same logic used in mysh2.c. If a pipe 
-is found, I replace the '|' character with a null terminator ('\0'). This allows me to 
-assign char *cmd_1 to the first command preceding the pipe (as reading stops at 
-'\0'), while char *cmd_2 points to the second command immediately following the 
-'|', leveraging the contiguous memory layout of the original input buffer. I then apply 
-the exact parsing logic from mysh2 using strtok(3) on both individual commands, 
-including identical error checks and dynamic memory allocations/deallocations. 
+o Parsing & Splitting: After reading user input via getline(3), I iterate through the char array (C-string) searching for the pipe delimiter character '|'. If no pipe is found, execution falls back seamlessly to the exact same logic used in mysh2.c. If a pipe is found, I replace the '|' character with a null terminator ('\0'). This allows me to assign char *cmd_1 to the first command preceding the pipe (as reading stops at '\0'), while char *cmd_2 points to the second command immediately following the '|', leveraging the contiguous memory layout of the original input buffer. I then apply the exact parsing logic from mysh2 using strtok(3) on both individual commands, including identical error checks and dynamic memory allocations/deallocations. 
 
-o Process Creation & Inter-Process Communication (IPC): To execute the piped 
-commands, I declare two process IDs (pid_t pid1, pid2) for the two child 
-processes and an integer array int fd[2] to store the read and write file descriptors 
-for the pipe. Appropriate error handling is included for pipe(2) and both fork(2) 
-calls, along with proper dynamic memory cleanups. 
+o Process Creation & Inter-Process Communication (IPC): To execute the piped commands, I declare two process IDs (pid_t pid1, pid2) for the two child processes and an integer array int fd[2] to store the read and write file descriptors for the pipe. Appropriate error handling is included for pipe(2) and both fork(2) calls, along with proper dynamic memory cleanups. 
 
-o Redirection using dup2(2): The primary challenge (though no automated test 
-cases failed) was understanding how to connect the two processes via dup2(2) so 
-that the stdout of the first command flows into the stdin of the second command: 
+o Redirection using dup2(2): The primary challenge (though no automated test cases failed) was understanding how to connect the two processes via dup2(2) so that the stdout of the first command flows into the stdin of the second command: 
 
-o In the first child process (executing cmd_1), I redirect standard output 
-(stdout) to fd[1] (the write end of the pipe) using dup2(2). 
+o In the first child process (executing cmd_1), I redirect standard output (stdout) to fd[1] (the write end of the pipe) using dup2(2). 
 
-o In the second child process (executing cmd_2), I redirect standard input 
-(stdin) to fd[0] (the read end of the pipe) using dup2(2). 
+o In the second child process (executing cmd_2), I redirect standard input (stdin) to fd[0] (the read end of the pipe) using dup2(2). 
 
-o Closing File Descriptors: Immediately after invoking dup2(2), unused file 
-descriptors are closed within each child. In the first child, fd[0] is closed because it 
-does not read from the pipe, and fd[1] is closed as it is redundant after duplication. 
-In the second child, fd[1] is closed because it does not write to the pipe, and fd[0] 
-is closed after dup2(2). 
+o Closing File Descriptors: Immediately after invoking dup2(2), unused file descriptors are closed within each child. In the first child, fd[0] is closed because it does not read from the pipe, and fd[1] is closed as it is redundant after duplication. In the second child, fd[1] is closed because it does not write to the pipe, and fd[0] is closed after dup2(2). 
 
-o Parent Process Cleanup: Most importantly, both pipe file descriptors (fd[0] and 
-fd[1]) must also be closed in the parent process outside the child conditional 
-blocks. If the parent keeps fd[1] open, the second child process will hang 
-indefinitely waiting for more input (EOF will never be sent), assuming the parent 
-might still write to the pipe. This causes the shell to freeze/hang and fail to print the 
-next prompt ("$ "). 
+o Parent Process Cleanup: Most importantly, both pipe file descriptors (fd[0] and fd[1]) must also be closed in the parent process outside the child conditional blocks. If the parent keeps fd[1] open, the second child process will hang indefinitely waiting for more input (EOF will never be sent), assuming the parent might still write to the pipe. This causes the shell to freeze/hang and fail to print the next prompt ("$ "). 
 
 In particular, the manual pages for dup(2) and dup2(2) proved especially helpful.
 
 ---
 
-# 👤 Author
-## Athanasios Gourdomichalis - https://github.com/AthanasiosGourdomichalis
+## 📄 Documentation
+For a detailed description of the assignment requirements, constraints, inter-process communication rules, and a sample execution, please refer to:
+
+* [📄 Assignment Requirements (PDF)](./assignment.pdf)
+* [📄 Developer Report (PDF)](./README.pdf)
 
 ---
+
+# 👤 Author
+## **Athanasios Gourdomichalis** - [GitHub Profile](https://github.com/AthanasiosGourdomichalis)
+
+---
+
