@@ -4,8 +4,6 @@
 
 > This repository contains the **implementation of three minimalistic custom UNIX shells** (**`mysh1`**, **`mysh2`**, **`mysh3`**) written in **`C`**. Developed as an Operating Systems project, these shells demonstrate core OS concepts including process creation, memory management, I/O redirection, and Inter-Process Communication (IPC).
 
----
-
 ## Features
 The project is divided into three progressive iterations:
 * **`mysh1` (Base Execution):** Reads commands from **standard input**, handles **leading/trailing whitespaces**, and executes programs securely from the `$PATH` environment variable. Gracefully ignores empty commands and prevents memory leaks.
